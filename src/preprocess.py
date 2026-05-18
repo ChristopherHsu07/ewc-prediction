@@ -23,7 +23,7 @@ def build_team_df(filename):
         'golddiffat25', 'killsat25', 'opp_killsat25',  # for kill diff at 25
         'gamelength', 'ckpm', 'side'
     ]
-
+    
     # filter to just desired features
     team_df = team_df[features]
 
