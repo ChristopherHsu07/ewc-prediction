@@ -1,5 +1,22 @@
 import pandas as pd
 
+regional_league_map = {
+    'LCK':   'LCK',
+    'LCKC':  'LCK',
+    'LPL':   'LPL',
+    'LEC':   'LEC',
+    'NLC':   'LEC',
+    'LCS':   'LCS',
+    'LTA N': 'LTA',
+    'LTA S': 'LTA',
+    'LTA':   'LTA',
+    'PCS':   'PCS',
+    'VCS':   'VCS',
+    'LJL':   'LJL',
+    'CBLOL': 'CBLOL',
+    'TCL':   'TCL',
+}
+
 def build_team_df(filename):
     '''
     filters and builds team_df from OraclesElixer csv
@@ -53,13 +70,23 @@ def build_team_profiles(team_df):
     std_stats = team_df.groupby('teamname')[agg_features].std()
     win_rate = team_df.groupby('teamname')['result'].mean()
 
+    # get home region not just league
+    regional_df  = team_df[team_df['league'].isin(regional_league_map.keys())]
+    team_region  = (
+        regional_df
+        .groupby('teamname')['league']
+        .agg(lambda x: x.mode()[0])
+        .map(regional_league_map)
+    )
+
     # rename columns
     std_stats.columns = [f'{c}_std' for c in std_stats.columns]
 
-    team_profiles = mean_stats.join(std_stats).join(win_rate)
+    team_profiles = mean_stats.join(std_stats).join(win_rate).join(team_region.rename('region'))
     team_profiles.reset_index(inplace=True)
 
     # fill NaNs with averages
+    team_profiles['region'] = team_profiles['region'].fillna('Unknown')
     team_profiles.fillna(team_profiles.mean(numeric_only=True), inplace=True)
 
     # print(team_profiles.shape)       # (num_teams, ~21 columns)
@@ -70,23 +97,6 @@ def build_team_profiles(team_df):
 
 def build_region_weights(team_df):
     # map regional leagues to their region
-    regional_league_map = {
-        'LCK':   'LCK',
-        'LCKC':  'LCK',
-        'LPL':   'LPL',
-        'LEC':   'LEC',
-        'NLC':   'LEC',
-        'LCS':   'LCS',
-        'LTA N': 'LTA',
-        'LTA S': 'LTA',
-        'LTA':   'LTA',
-        'PCS':   'PCS',
-        'VCS':   'VCS',
-        'LJL':   'LJL',
-        'CBLOL': 'CBLOL',
-        'TCL':   'TCL',
-        'LCO':   'LCO',
-    }
 
     intl_leagues = ['WLDs', 'MSI', 'EWC', 'FST', 'Asia Master', 'IC']
 

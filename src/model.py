@@ -74,7 +74,7 @@ def evaluate_model(model, x_test_scaled, y_test, feature_cols):
     print(weights)
     return
 
-def predict_matchup(team_a, team_b, team_profiles, model, scaler, feature_cols, n_simulations=10000):
+def predict_matchup(team_a, team_b, team_profiles, model, scaler, feature_cols, region_weights = None, n_simulations=10000):
     
     # get each team's profile
     a = team_profiles[team_profiles['teamname'] == team_a].iloc[0]
@@ -91,6 +91,13 @@ def predict_matchup(team_a, team_b, team_profiles, model, scaler, feature_cols, 
         'diff_ckpm':         'ckpm',
     }
     objective_stats = ['firstdragon', 'firstbaron', 'firsttower']
+
+    # get region weights, default to 1.0 if not found
+    a_weight = 1.0
+    b_weight = 1.0
+    if region_weights:
+        a_weight = region_weights.get(a['region'], 1.0)
+        b_weight = region_weights.get(b['region'], 1.0)
 
     # simulate game n times to get win probability
     win_count = 0
@@ -109,12 +116,11 @@ def predict_matchup(team_a, team_b, team_profiles, model, scaler, feature_cols, 
             # predict objectives with Bradley-Terry normalization
             elif col in [f'{s}_blue' for s in objective_stats]:
                 stat = col.replace('_blue', '')
-                a_rate = a[stat]
-                b_rate = b[stat]
-                a_obj_prob = a_rate / (a_rate + b_rate)
-                matchup_features.append(a_obj_prob)
+                a_rate = a[stat] * a_weight
+                b_rate = b[stat] * b_weight
+                prob_a_gets_it = a_rate / (a_rate + b_rate)
+                matchup_features.append(prob_a_gets_it)
 
-        # scale and predict
         features_array = np.array(matchup_features).reshape(1, -1)
         features_scaled = scaler.transform(features_array)
         win_prob = model.predict_proba(features_scaled)[0][1]
@@ -123,7 +129,7 @@ def predict_matchup(team_a, team_b, team_profiles, model, scaler, feature_cols, 
     avg_win_prob = win_count / n_simulations
 
     print(f"\n{team_a} vs {team_b}")
-    print(f"{team_a} win probability: {avg_win_prob:.2%}")
-    print(f"{team_b} win probability: {1 - avg_win_prob:.2%}")
+    print(f"  {team_a} ({a['region']}, weight: {a_weight:.3f}): {avg_win_prob:.2%}")
+    print(f"  {team_b} ({b['region']}, weight: {b_weight:.3f}): {1 - avg_win_prob:.2%}")
 
     return avg_win_prob

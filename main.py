@@ -18,6 +18,8 @@ matchups = build_matchups(team_df)
 region_weights = build_region_weights(team_df)
 print(region_weights)  # sanity check
 
+print(team_profiles.columns.tolist())
+
 model, scaler, feature_cols, x_test_scaled, y_test = train_model(matchups)
-#evaluate_model(model, x_test_scaled, y_test, feature_cols)
-print(predict_matchup("T1", "Cloud9", team_profiles, model, scaler, feature_cols))
+
+print(predict_matchup("T1", "Cloud9", team_profiles, model, scaler, feature_cols, region_weights))
