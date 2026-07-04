@@ -10,6 +10,8 @@ A logistic regression model that predicts professional League of Legends match o
 
 3. **Prediction** — For each matchup, 10,000 Monte Carlo simulations sample from each team's stat distributions (mean ± std), scale the features, and feed them into the logistic regression model via `predict_proba`. Simulations are run twice (swapping blue/red side) and averaged to remove side bias. The result is a win probability for each team.
 
+4. **Win-rate control** — A rudimentary baseline that predicts the team with the higher cumulative pre-game win rate (computed chronologically with no future leakage). Used to benchmark how much the full model improves over "pick the team that's been winning more."
+
 ## Data
 
 - **Source:** [OraclesElixir](https://oracleselixir.com/)
@@ -22,9 +24,14 @@ A logistic regression model that predicts professional League of Legends match o
 # Install dependencies
 pip install -r requirements.txt
 
-# Run a single custom matchup (edit the predict_matchup call at the bottom of main.py)
+# Train the full model, evaluate against the win-rate control, and predict a sample matchup
+# (edit the sample_a / sample_b variables at the bottom of main.py to change teams)
 python main.py
+```
 
+Running `main.py` prints region weights, win-rate control accuracy and classification report, full model accuracy and classification report with feature weights, a side-by-side accuracy summary, and sample matchup predictions from both the control and full model.
+
+```bash
 # Run the MSI 2026 Play-in bracket predictor
 python predict_playin.py
 
