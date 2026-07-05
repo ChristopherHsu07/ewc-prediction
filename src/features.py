@@ -32,6 +32,8 @@ def build_matchups(team_df):
         matchups[f'diff_{f}'] = matchups[f'{f}_blue'] - matchups[f'{f}_red']
 
     matchups['diff_win_rate'] = matchups['win_rate_blue'] - matchups['win_rate_red']
+    matchups['league'] = matchups['league_blue']
+    matchups['date'] = pd.to_datetime(matchups['date_blue'])
 
     matchups['blue_win'] = matchups['result_blue']
     matchups = matchups.dropna()

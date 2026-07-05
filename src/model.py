@@ -5,6 +5,37 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score, classification_report
 
+from src.preprocess import is_international_league
+
+DIFF_COLS = [
+    'diff_golddiffat15', 'diff_xpdiffat15', 'diff_csdiffat15',
+    'diff_golddiffat25', 'diff_killdiffat25', 'diff_gamelength', 'diff_ckpm',
+    'diff_win_rate',
+]
+OBJECTIVE_COLS = ['firstdragon_blue', 'firstbaron_blue', 'firsttower_blue']
+
+
+def _feature_cols():
+    return DIFF_COLS + OBJECTIVE_COLS
+
+
+def fit_model(matchups):
+    '''
+    Train logistic regression on all rows in matchups (no holdout split).
+    '''
+    feature_cols = _feature_cols()
+    x_axis = matchups[feature_cols]
+    y_axis = matchups['blue_win']
+
+    scaler = StandardScaler()
+    x_scaled = scaler.fit_transform(x_axis)
+
+    model = LogisticRegression(max_iter=1000, random_state=42)
+    model.fit(x_scaled, y_axis)
+
+    return model, scaler, feature_cols
+
+
 def train_model(matchups):
     '''
     builds and trains a logistic regression model, 
@@ -20,37 +51,20 @@ def train_model(matchups):
         x_test_scaled (list) of scaled partition of feature_cols
         y_test (list) of partition of matchups results for test 
     '''
-    
-    # choose featuers
-    diff_cols = [
-        'diff_golddiffat15', 'diff_xpdiffat15', 'diff_csdiffat15',
-        'diff_golddiffat25', 'diff_killdiffat25', 'diff_gamelength', 'diff_ckpm',
-        'diff_win_rate',
-    ]
-    objective_cols = ['firstdragon_blue', 'firstbaron_blue', 'firsttower_blue']
-
-    feature_cols = diff_cols + objective_cols
-
-    # model learns how to use x axis to predict y axis
+    feature_cols = _feature_cols()
     x_axis = matchups[feature_cols]
     y_axis = matchups['blue_win']
 
-    # split data into train 80% train and 20% test data
     x_train, x_test, y_train, y_test = train_test_split(
-        x_axis, y_axis, test_size = 0.2, random_state = 42
+        x_axis, y_axis, test_size=0.2, random_state=42
     )
 
-    # scale data
     scaler = StandardScaler()
     x_train_scaled = scaler.fit_transform(x_train)
-    x_test_scaled  = scaler.transform(x_test)
+    x_test_scaled = scaler.transform(x_test)
 
-    # build model
     model = LogisticRegression(max_iter=1000, random_state=42)
     model.fit(x_train_scaled, y_train)
-
-    y_pred = model.predict(x_test_scaled)
-    y_prob = model.predict_proba(x_test_scaled)[:, 1]
 
     return model, scaler, feature_cols, x_test_scaled, y_test
 
@@ -95,13 +109,16 @@ def _simulate_side(blue, red, blue_weight, red_weight, model, scaler, feature_co
                 stat = col.replace('_blue', '')
                 blue_rate = blue[stat] * blue_weight
                 red_rate  = red[stat]  * red_weight
-                prob_blue_gets_it = blue_rate / (blue_rate + red_rate)
+                total = blue_rate + red_rate
+                prob_blue_gets_it = blue_rate / total if total > 0 else 0.5
                 matchup_features.append(prob_blue_gets_it)
 
             elif col == 'diff_win_rate':
                 matchup_features.append(blue['result'] - red['result'])
 
-        features_array  = np.array(matchup_features).reshape(1, -1)
+        features_array  = np.nan_to_num(
+            np.array(matchup_features, dtype=float), nan=0.0
+        ).reshape(1, -1)
         features_scaled = scaler.transform(features_array)
         win_prob = model.predict_proba(features_scaled)[0][1]
         win_count += win_prob
@@ -145,3 +162,70 @@ def predict_matchup(team_a, team_b, team_profiles, model, scaler, feature_cols, 
         print(f"  {team_b} ({b['region']}, weight: {b_weight:.3f}): {1 - avg_win_prob:.2%}")
 
     return avg_win_prob
+
+
+def evaluate_predict_matchup(
+    test_matchups,
+    model,
+    scaler,
+    feature_cols,
+    profiles_domestic,
+    profiles_intl,
+    region_weights,
+    n_simulations=500,
+):
+    '''
+    Backtest predict_matchup on holdout games using train-only profiles.
+    Applies intl_boost profiles and region_weights only for international leagues.
+    '''
+    known_teams = set(profiles_domestic['teamname'])
+    y_true = []
+    y_pred = []
+    intl_true, intl_pred = [], []
+    dom_true, dom_pred = [], []
+    missing = 0
+
+    for _, row in test_matchups.iterrows():
+        blue = row['teamname_blue']
+        red = row['teamname_red']
+        actual = int(row['blue_win'])
+
+        if blue not in known_teams or red not in known_teams:
+            missing += 1
+            prob_blue = 0.5
+        elif is_international_league(row['league']):
+            prob_blue = predict_matchup(
+                blue, red, profiles_intl, model, scaler, feature_cols,
+                region_weights, n_simulations=n_simulations,
+            )
+        else:
+            prob_blue = predict_matchup(
+                blue, red, profiles_domestic, model, scaler, feature_cols,
+                None, n_simulations=n_simulations,
+            )
+
+        predicted = int(prob_blue >= 0.5)
+        y_true.append(actual)
+        y_pred.append(predicted)
+
+        if is_international_league(row['league']):
+            intl_true.append(actual)
+            intl_pred.append(predicted)
+        else:
+            dom_true.append(actual)
+            dom_pred.append(predicted)
+
+    accuracy = accuracy_score(y_true, y_pred)
+
+    print("\n--- predict_matchup ---")
+    print(f"Accuracy: {accuracy:.2%}")
+    print(classification_report(y_true, y_pred))
+
+    if intl_true:
+        print(f"International games: {accuracy_score(intl_true, intl_pred):.2%} ({len(intl_true)} games)")
+    if dom_true:
+        print(f"Domestic games:      {accuracy_score(dom_true, dom_pred):.2%} ({len(dom_true)} games)")
+    if missing:
+        print(f"Teams missing from train profiles: {missing} games (defaulted to 0.5)")
+
+    return accuracy

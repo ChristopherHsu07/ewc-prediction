@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report
 
 DEFAULT_WIN_RATE = 0.5
@@ -104,16 +103,10 @@ def predict_winrate_matchup(team_a, team_b, win_rates):
     return winrate_win_prob(wr_a, wr_b)
 
 
-def evaluate_winrate_control(matchups, test_size=0.2, random_state=42):
+def evaluate_winrate_control(test_matchups):
     '''
-    Evaluate the win-rate control on the same holdout split as train_model.
+    Evaluate the win-rate control on a pre-split holdout set.
     '''
-    _, test_matchups = train_test_split(
-        matchups,
-        test_size=test_size,
-        random_state=random_state,
-    )
-
     y_test = test_matchups['blue_win']
     y_pred = (test_matchups['pre_win_rate_blue'] > test_matchups['pre_win_rate_red']).astype(int)
 

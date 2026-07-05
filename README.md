@@ -10,7 +10,7 @@ A logistic regression model that predicts professional League of Legends match o
 
 3. **Prediction** — For each matchup, 10,000 Monte Carlo simulations sample from each team's stat distributions (mean ± std), scale the features, and feed them into the logistic regression model via `predict_proba`. Simulations are run twice (swapping blue/red side) and averaged to remove side bias. The result is a win probability for each team.
 
-4. **Win-rate control** — A rudimentary baseline that predicts the team with the higher cumulative pre-game win rate (computed chronologically with no future leakage). Used to benchmark how much the full model improves over "pick the team that's been winning more."
+4. **Win-rate control** — A rudimentary baseline that predicts the team with the higher cumulative pre-game win rate (computed chronologically with no future leakage). Used to benchmark how much `predict_matchup` improves over "pick the team that's been winning more."
 
 ## Data
 
@@ -24,12 +24,22 @@ A logistic regression model that predicts professional League of Legends match o
 # Install dependencies
 pip install -r requirements.txt
 
-# Train the full model, evaluate against the win-rate control, and predict a sample matchup
-# (edit the sample_a / sample_b variables at the bottom of main.py to change teams)
+# Backtest predict_matchup vs win-rate control, then predict a sample matchup
+# (edit sample_a / sample_b at the bottom of main.py to change teams)
 python main.py
 ```
 
-Running `main.py` prints region weights, win-rate control accuracy and classification report, full model accuracy and classification report with feature weights, a side-by-side accuracy summary, and sample matchup predictions from both the control and full model.
+Running `main.py` prints region weights, win-rate control accuracy, `predict_matchup` accuracy (with per-game international scaling on the test set), a side-by-side summary, and sample live matchup predictions from both. Test evaluation uses an 80/20 random holdout split with profiles, weights, and model fit on training games only.
+
+### Model vs control (80/20 holdout)
+
+| Predictor | Accuracy |
+|---|---|
+| Win-rate control | 59.89% |
+| predict_matchup | 61.13% |
+| Delta | +1.25 pp |
+
+International test games use intl-boosted profiles and region weights; domestic test games do not.
 
 ```bash
 # Run the MSI 2026 Play-in bracket predictor

@@ -1,6 +1,13 @@
 import pandas as pd
 import numpy as np
 
+INTL_LEAGUES = {'WLDs', 'MSI', 'EWC', 'FST', 'Asia Master', 'IC'}
+
+
+def is_international_league(league):
+    return league in INTL_LEAGUES
+
+
 regional_league_map = {
     'LCK':   'LCK',
     'LCKC':  'LCK',
@@ -110,8 +117,7 @@ def build_team_profiles(team_df, half_life_days=180, intl_boost=1.0):
     team_df['decay_weight'] = np.exp(-np.log(2) * team_df['days_ago'] / half_life_days)
 
     if intl_boost != 1.0:
-        intl_leagues = {'WLDs', 'MSI', 'EWC', 'FST', 'Asia Master', 'IC'}
-        intl_mask = team_df['league'].isin(intl_leagues)
+        intl_mask = team_df['league'].isin(INTL_LEAGUES)
         team_df.loc[intl_mask, 'decay_weight'] *= intl_boost
 
     agg_features = [
@@ -150,8 +156,6 @@ def build_team_profiles(team_df, half_life_days=180, intl_boost=1.0):
 def build_region_weights(team_df, verbose=False):
     # map regional leagues to their region
 
-    intl_leagues = ['WLDs', 'MSI', 'EWC', 'FST', 'Asia Master', 'IC']
-
     # get each team's home region from regional games only
     regional_df = team_df[team_df['league'].isin(regional_league_map.keys())]
     team_region = (
@@ -162,7 +166,7 @@ def build_region_weights(team_df, verbose=False):
     )
 
     # filter to international games only
-    intl_df = team_df[team_df['league'].isin(intl_leagues)].copy()
+    intl_df = team_df[team_df['league'].isin(INTL_LEAGUES)].copy()
 
     if intl_df.empty:
         if verbose:
