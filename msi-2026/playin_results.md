@@ -30,3 +30,8 @@
 | Matchup | Predicted Winner | Confidence | Actual Result |
 |---|---|---|---|
 | Team Liquid vs T1 | T1 | 54.6% | T1 |
+
+## Summary
+
+- **Match prediction accuracy:** 6 / 6 (100%)
+- **Pick'em points:** 90 / 90
