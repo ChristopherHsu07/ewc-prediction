@@ -40,16 +40,16 @@ train_weights = build_region_weights(train_team_df)
 
 model, scaler, feature_cols = fit_model(train_matchups)
 
-control_acc = evaluate_winrate_control(test_matchups)
-predict_acc = evaluate_predict_matchup(
-    test_matchups, model, scaler, feature_cols,
-    train_profiles_domestic, train_profiles_intl, train_weights,
-)
+# control_acc = evaluate_winrate_control(test_matchups)
+# predict_acc = evaluate_predict_matchup(
+#     test_matchups, model, scaler, feature_cols,
+#     train_profiles_domestic, train_profiles_intl, train_weights,
+# )
 
-print("\n--- Side-by-side summary ---")
-print(f"Win-rate control:  {control_acc:.2%}")
-print(f"predict_matchup:   {predict_acc:.2%}")
-print(f"Delta:             {predict_acc - control_acc:+.2%}")
+# print("\n--- Side-by-side summary ---")
+# print(f"Win-rate control:  {control_acc:.2%}")
+# print(f"predict_matchup:   {predict_acc:.2%}")
+# print(f"Delta:             {predict_acc - control_acc:+.2%}")
 
 sample_a, sample_b = "T1", "Cloud9"
 intl_boost = 3.0 if INTERNATIONAL_MODE else 1.0
