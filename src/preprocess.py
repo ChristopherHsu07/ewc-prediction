@@ -153,9 +153,11 @@ def build_team_profiles(team_df, half_life_days=180, intl_boost=1.0):
 
     return team_profiles
 
-def build_region_weights(team_df, verbose=False):
-    # map regional leagues to their region
-
+def build_region_weights(team_df, half_life_days=365, verbose=False):
+    '''
+    Derive normalized region strength multipliers from international win rates,
+    with milder exponential decay than team profiles (default half-life 365 days).
+    '''
     # get each team's home region from regional games only
     regional_df = team_df[team_df['league'].isin(regional_league_map.keys())]
     team_region = (
@@ -182,17 +184,30 @@ def build_region_weights(team_df, verbose=False):
         print(f"warning: could not map these teams to a region: {unmapped}")
     intl_df = intl_df.dropna(subset=['region'])
 
-    if verbose:
-        print(f"Building region weights from {len(intl_df)} international games")
+    # milder exponential decay so recent internationals matter more without
+    # discarding older Worlds/MSI samples as aggressively as team profiles
+    intl_df['date'] = pd.to_datetime(intl_df['date'])
+    most_recent = pd.to_datetime(team_df['date']).max()
+    intl_df['days_ago'] = (most_recent - intl_df['date']).dt.days
+    intl_df['decay_weight'] = np.exp(-np.log(2) * intl_df['days_ago'] / half_life_days)
 
-    # win rate per region at international events
-    region_winrates = intl_df.groupby('region')['result'].mean()
-    region_counts   = intl_df.groupby('region')['result'].count()
+    if verbose:
+        print(f"Building region weights from {len(intl_df)} international games "
+              f"(half-life {half_life_days}d)")
+
+    # recency-weighted win rate per region at international events
+    region_winrates = intl_df.groupby('region').apply(
+        lambda g: np.average(g['result'], weights=g['decay_weight']),
+        include_groups=False,
+    )
+    region_counts = intl_df.groupby('region')['result'].count()
+    region_eff_n = intl_df.groupby('region')['decay_weight'].sum()
 
     if verbose:
-        print("\nRaw international win rates:")
+        print("\nRecency-weighted international win rates:")
         for region in region_winrates.sort_values(ascending=False).index:
-            print(f"  {region}: {region_winrates[region]:.3f} ({region_counts[region]} games)")
+            print(f"  {region}: {region_winrates[region]:.3f} "
+                  f"({region_counts[region]} games, eff_n={region_eff_n[region]:.1f})")
 
     # normalize around 1.0
     mean_wr = region_winrates.mean()
