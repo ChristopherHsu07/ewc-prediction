@@ -2,6 +2,9 @@
 
 A logistic regression model that predicts professional League of Legends match outcomes using historical team performance data from OraclesElixir.
 
+<img width="1520" height="834" alt="image" src="https://github.com/user-attachments/assets/ee2a2d58-44d1-49d7-9ce9-13dc25a98054" />
+
+
 ## How It Works
 
 1. **Team profiles** — Raw match data is aggregated into per-team stat profiles (gold diff, XP diff, CS diff, kill diff, objective rates, game length, CKPM). Recent games are weighted more heavily using exponential decay with a 180-day half-life, and international games are boosted 3x when predicting cross-region matchups.
